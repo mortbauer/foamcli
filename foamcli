@@ -90,21 +90,21 @@ def clean_postprocessing():
     shutil.rmtree(os.path.join(DIR,'postProcessing'))
     shutil.rmtree(os.path.join(DIR,'turboPerformance'))
 
-def collect_time_dirs_in_paralell(parallel=False):
+def collect_time_dirs_in_paralell(path,parallel=False):
     time_dirs = {}
     if parallel:
-        for x in os.listdir(DIR):
+        for x in os.listdir(path):
             match = PROCESSOR_PATTERN.match(x)
             if match:
                 if not x in time_dirs:
                     time_dirs[x] = []
-                for t in os.listdir(os.path.join(DIR,x)):
+                for t in os.listdir(os.path.join(path,x)):
                     tmatch = TIME_PATTERN.match(t)
                     if tmatch:
                         time_dirs[x].append(float(t))
     else:
         time_dirs['./'] = []
-        for t in os.listdir(DIR):
+        for t in os.listdir(path):
             tmatch = TIME_PATTERN.match(t)
             if tmatch:
                 time_dirs['./'].append(float(t))
@@ -115,10 +115,21 @@ def prepare():
     pass
 
 @prepare.command()
-@click.option('--latest/--no-latest',default=True)
 @click.option('--time',default='')
-def copy(fro,to,time=''):
-    pass
+@click.option('--parallel/--no-parallel',default=False)
+def copy(fro,to,parallel=False,time=''):
+    time_dirs = collect_time_dirs_in_paralell(fro,parallel=parallel)
+    if time:
+        timename = TIME_TEMPLATE.format(float(time))
+    for x in time_dirs:
+        time_dirs[x].sort()
+        if not time:
+            timename = TIME_TEMPLATE.format(time_dirs[x][-1])
+        shutil.coptree(
+            os.path.join(fro,x,timename),
+            os.path.join(to,x,timename))
+
+
 
 @prepare.command('boundary')
 @click.option('--n',default=4)
@@ -153,14 +164,13 @@ def convert_to_compressible(parallel=False,time=''):
             ['mpirun','-n',str(n),'changeDictionary','-parallel','-dict',
             'system/changeDictionaryDict_initial_pressure']+timeargs)
     # backup old fields and replace with new
-    time_dirs = collect_time_dirs_in_paralell(parallel=parallel)
-    print(time_dirs)
+    time_dirs = collect_time_dirs_in_paralell(DIR,parallel=parallel)
+    if time:
+        timename = TIME_TEMPLATE.format(float(time))
     for x in time_dirs:
         time_dirs[x].sort()
         if not time:
             timename = TIME_TEMPLATE.format(time_dirs[x][-1])
-        else:
-            timename = TIME_TEMPLATE.format(float(time))
         for field in ('p','phi'):
             shutil.move(
                 os.path.join(x,timename,field),
