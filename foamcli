@@ -117,6 +117,8 @@ def prepare():
 @prepare.command()
 @click.option('--time',default='')
 @click.option('--parallel/--no-parallel',default=False)
+@click.argument('fro')
+@click.argument('to')
 def copy(fro,to,parallel=False,time=''):
     time_dirs = collect_time_dirs_in_paralell(fro,parallel=parallel)
     if time:
