@@ -119,19 +119,35 @@ def prepare():
 @click.option('--parallel/--no-parallel',default=False)
 @click.argument('fro')
 @click.argument('to')
-def copy(fro,to,parallel=False,time=''):
+@click.option('--only-constant',default=False)
+def copy(fro,to,parallel=False,time='',only_constant=False):
     time_dirs = collect_time_dirs_in_paralell(fro,parallel=parallel)
+    if parallel:
+        constant_dirs = []
+        for x in os.listdir(fro):
+            if PROCESSOR_PATTERN.match(x):
+                constant_dirs.append(os.path.join(x,'constant'))
+    else:
+        constant_dirs = ['constant']
     if time:
         timename = TIME_TEMPLATE.format(float(time))
-    for x in time_dirs:
-        time_dirs[x].sort()
-        if not time:
-            timename = TIME_TEMPLATE.format(time_dirs[x][-1])
-        if os.path.exists(os.path.join(to,x,timename)):
-            shutil.rmtree(os.path.join(to,x,timename))
+    if not only_constant:
+        for x in time_dirs:
+            time_dirs[x].sort()
+            if not time:
+                timename = TIME_TEMPLATE.format(time_dirs[x][-1])
+            if os.path.exists(os.path.join(to,x,timename)):
+                shutil.rmtree(os.path.join(to,x,timename))
+            shutil.copytree(
+                os.path.join(fro,x,timename),
+                os.path.join(to,x,timename))
+    for x in constant_dirs:
+        if os.path.exists(os.path.join(to,x)):
+            shutil.rmtree(os.path.join(to,x))
         shutil.copytree(
-            os.path.join(fro,x,timename),
-            os.path.join(to,x,timename))
+            os.path.join(fro,x),
+            os.path.join(to,x))
+
 
 
 
