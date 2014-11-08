@@ -127,7 +127,7 @@ def copy(fro,to,parallel=False,time=''):
         time_dirs[x].sort()
         if not time:
             timename = TIME_TEMPLATE.format(time_dirs[x][-1])
-        shutil.coptree(
+        shutil.copytree(
             os.path.join(fro,x,timename),
             os.path.join(to,x,timename))
 
