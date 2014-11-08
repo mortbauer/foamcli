@@ -1,0 +1,174 @@
+#!/usr/bin/env python
+
+import os
+import re
+import click
+import shutil
+import subprocess
+import multiprocessing
+
+DIR = os.path.dirname(os.path.abspath(__file__))
+TIME_TEMPLATE = '{0:.8e}'
+
+PROCESSOR_PATTERN = re.compile('^processor[0-9]+$')
+TIME_PATTERN = re.compile('^[0-9]\.[0-9]+$|^[0-9]\.[0-9]+e[+-][0-9]+$|^[0-9]*$')
+LOG_PATTERN = re.compile('^log\.[a-zA-Z]*$')
+
+@click.group()
+def run():
+    pass
+
+@run.group()
+def clean():
+    pass
+
+@clean.command(name='all')
+@click.pass_context
+def clean_all(ctx):
+    if click.confirm('Do you really want to clean all case Data?'):
+        ctx.invoke(clean_time_steps)
+        ctx.invoke(clean_parallel_times)
+        ctx.invoke(clean_logs)
+
+@clean.command('time-steps')
+def clean_time_steps():
+    for x in os.listdir(DIR):
+        match = TIME_PATTERN.match(x)
+        if match and not float(x) == 0.0:
+            shutil.rmtree(os.path.join(DIR,x))
+
+@clean.command('processors')
+def clean_processors():
+    if click.confirm('Do you really want to clean the processors data?'):
+        for x in os.listdir(DIR):
+            match = PROCESSOR_PATTERN.match(x)
+            if match:
+                shutil.rmtree(os.path.join(DIR,x))
+
+@clean.command('parallel')
+@click.option('--keep-last/--nokeep-last',default=True)
+@click.option('--keep')
+@click.option('--n',default=4)
+def clean_parallel_times(keep_last=True,n=4,keep=None):
+    time_dirs = {}
+    for x in os.listdir(DIR):
+        match = PROCESSOR_PATTERN.match(x)
+        if match:
+            if not x in time_dirs:
+                time_dirs[x] = []
+            for t in os.listdir(os.path.join(DIR,x)):
+                tmatch = TIME_PATTERN.match(t)
+                if tmatch:
+                    time_dirs[x].append(float(t))
+
+    # now delete all but the last time if not specified otherwise
+    p = multiprocessing.Pool(n)
+    rm_dirs = []
+    for x in time_dirs:
+        # sort the times
+        time_dirs[x].sort()
+        if keep_last:
+            time_dirs[x].pop()
+        if keep is not None:
+            KEEP = re.compile(keep)
+        for t in time_dirs[x]:
+            name = TIME_TEMPLATE.format(t)
+            if (keep is None) or (not KEEP.match(name)):
+                rm_dirs.append(os.path.join(x,name))
+
+    p.map(shutil.rmtree,rm_dirs)
+
+@clean.command('logs')
+def clean_logs():
+    for x in os.listdir(DIR):
+        match = LOG_PATTERN.match(x)
+        if match:
+            os.remove(os.path.join(DIR,x))
+
+@clean.command('post')
+def clean_postprocessing():
+    shutil.rmtree(os.path.join(DIR,'postProcessing'))
+    shutil.rmtree(os.path.join(DIR,'turboPerformance'))
+
+def collect_time_dirs_in_paralell(parallel=False):
+    time_dirs = {}
+    if parallel:
+        for x in os.listdir(DIR):
+            match = PROCESSOR_PATTERN.match(x)
+            if match:
+                if not x in time_dirs:
+                    time_dirs[x] = []
+                for t in os.listdir(os.path.join(DIR,x)):
+                    tmatch = TIME_PATTERN.match(t)
+                    if tmatch:
+                        time_dirs[x].append(float(t))
+    else:
+        time_dirs['./'] = []
+        for t in os.listdir(DIR):
+            tmatch = TIME_PATTERN.match(t)
+            if tmatch:
+                time_dirs['./'].append(float(t))
+    return time_dirs
+
+@run.group()
+def prepare():
+    pass
+
+@prepare.command()
+@click.option('--latest/--no-latest',default=True)
+@click.option('--time',default='')
+def copy(fro,to,time=''):
+    pass
+
+@prepare.command('boundary')
+@click.option('--n',default=4)
+def change_boundary_condition(n):
+    subprocess.call(
+        ['mpirun','-n',str(n),'changeDictionary','-parallel','-dict',
+         'system/changeDictionaryDict_relative_velocity'])
+
+@prepare.command('tocompressible')
+@click.option('--parallel/--no-parallel',default=False)
+@click.option('--time',default='')
+def convert_to_compressible(parallel=False,time=''):
+    if time:
+        timeargs = ['-time',time]
+    else:
+        timeargs = ['-latestTime']
+    if parallel:
+        n = 0
+        for x in os.listdir(DIR):
+            if PROCESSOR_PATTERN.match(x):
+                n +=1
+    if not parallel:
+        subprocess.call(
+            ['convertPhi','-rhoRef','300']+timeargs)
+        subprocess.call(
+            ['changeDictionary','-dict',
+            'system/changeDictionaryDict_initial_pressure']+timeargs)
+    else:
+        subprocess.call(
+            ['mpirun','-n',str(n),'convertPhi','-parallel','-rhoRef','300']+timeargs)
+        subprocess.call(
+            ['mpirun','-n',str(n),'changeDictionary','-parallel','-dict',
+            'system/changeDictionaryDict_initial_pressure']+timeargs)
+    # backup old fields and replace with new
+    time_dirs = collect_time_dirs_in_paralell(parallel=parallel)
+    print(time_dirs)
+    for x in time_dirs:
+        time_dirs[x].sort()
+        if not time:
+            timename = TIME_TEMPLATE.format(time_dirs[x][-1])
+        else:
+            timename = TIME_TEMPLATE.format(float(time))
+        for field in ('p','phi'):
+            shutil.move(
+                os.path.join(x,timename,field),
+                os.path.join(x,timename,'{0}.incompressible'.format(field)))
+            shutil.move(
+                os.path.join(x,timename,'rho{0}'.format(field)),
+                os.path.join(x,timename,field))
+
+
+if __name__ == '__main__':
+    run()
