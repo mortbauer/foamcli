@@ -92,7 +92,7 @@ def clean_postprocessing():
             shutil.rmtree(os.path.join(DIR,x))
         except OSError as e:
             if e.errno == os.errno.ENOENT:
-                pass
+                print('ignore: {0}'.format(os.path.join(DIR,x)))
 
 def collect_time_dirs_in_paralell(path,parallel=False):
     time_dirs = {}
