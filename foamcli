@@ -87,8 +87,12 @@ def clean_logs():
 
 @clean.command('post')
 def clean_postprocessing():
-    shutil.rmtree(os.path.join(DIR,'postProcessing'))
-    shutil.rmtree(os.path.join(DIR,'turboPerformance'))
+    for x in ('postProcessing','turboPerformance'):
+        try:
+            shutil.rmtree(os.path.join(DIR,x))
+        except OSError as e:
+            if e.errno == os.errno.ENOENT:
+                pass
 
 def collect_time_dirs_in_paralell(path,parallel=False):
     time_dirs = {}
@@ -148,9 +152,6 @@ def copy(fro,to,parallel=False,time='',only_constant=False):
             os.path.join(fro,x),
             os.path.join(to,x))
 
-
-
-
 @prepare.command('boundary')
 @click.option('--n',default=4)
 def change_boundary_condition(n):
@@ -158,7 +159,7 @@ def change_boundary_condition(n):
         ['mpirun','-n',str(n),'changeDictionary','-parallel','-dict',
          'system/changeDictionaryDict_relative_velocity'])
 
-@prepare.command('tocompressible')
+@prepare.command('tocomp')
 @click.option('--parallel/--no-parallel',default=False)
 @click.option('--time',default='')
 def convert_to_compressible(parallel=False,time=''):
@@ -183,22 +184,6 @@ def convert_to_compressible(parallel=False,time=''):
         subprocess.call(
             ['mpirun','-n',str(n),'changeDictionary','-parallel','-dict',
             'system/changeDictionaryDict_initial_pressure']+timeargs)
-    # backup old fields and replace with new
-    time_dirs = collect_time_dirs_in_paralell(DIR,parallel=parallel)
-    if time:
-        timename = TIME_TEMPLATE.format(float(time))
-    for x in time_dirs:
-        time_dirs[x].sort()
-        if not time:
-            timename = TIME_TEMPLATE.format(time_dirs[x][-1])
-        for field in ('p','phi'):
-            shutil.move(
-                os.path.join(x,timename,field),
-                os.path.join(x,timename,'{0}.incompressible'.format(field)))
-            shutil.move(
-                os.path.join(x,timename,'rho{0}'.format(field)),
-                os.path.join(x,timename,field))
-
 
 if __name__ == '__main__':
     run()
