@@ -8,7 +8,7 @@ import subprocess
 import multiprocessing
 
 DIR = os.path.dirname(os.path.abspath(__file__))
-TIME_TEMPLATE = '{0:.8e}'
+TIME_TEMPLATE = '{0:.2}'
 
 PROCESSOR_PATTERN = re.compile('^processor[0-9]+$')
 TIME_PATTERN = re.compile('^[0-9]\.[0-9]+$|^[0-9]\.[0-9]+e[+-][0-9]+$|^[0-9]*$')
@@ -18,7 +18,7 @@ LOG_PATTERN = re.compile('^log\.[a-zA-Z]*$')
 def run():
     pass
 
-@run.group()
+@run.group(chain=True)
 def clean():
     pass
 
@@ -59,22 +59,21 @@ def clean_parallel_times(keep_last=True,n=4,keep=None):
             for t in os.listdir(os.path.join(DIR,x)):
                 tmatch = TIME_PATTERN.match(t)
                 if tmatch:
-                    time_dirs[x].append(float(t))
+                    time_dirs[x].append(t)
 
     # now delete all but the last time if not specified otherwise
     p = multiprocessing.Pool(n)
     rm_dirs = []
+    if keep is not None:
+        KEEP = re.compile(keep)
     for x in time_dirs:
         # sort the times
-        time_dirs[x].sort()
+        time_dirs[x].sort(key=float)
         if keep_last:
             time_dirs[x].pop()
-        if keep is not None:
-            KEEP = re.compile(keep)
         for t in time_dirs[x]:
-            name = TIME_TEMPLATE.format(t)
-            if (keep is None) or (not KEEP.match(name)):
-                rm_dirs.append(os.path.join(x,name))
+            if (keep is None) or (not KEEP.match(t)):
+                rm_dirs.append(os.path.join(x,t))
 
     p.map(shutil.rmtree,rm_dirs)
 
