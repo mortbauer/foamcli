@@ -48,8 +48,9 @@ def clean_processors():
 @clean.command('parallel')
 @click.option('--keep-last/--nokeep-latest',default=True)
 @click.option('--keep')
+@click.option('--del-each',default=1)
 @click.option('--n',default=4)
-def clean_parallel_times(keep_last=True,n=4,keep=None):
+def clean_parallel_times(keep_last=True,n=4,keep=None,del_each=1):
     time_dirs = {}
     for x in os.listdir(DIR):
         match = PROCESSOR_PATTERN.match(x)
@@ -71,7 +72,7 @@ def clean_parallel_times(keep_last=True,n=4,keep=None):
         time_dirs[x].sort(key=float)
         if keep_last:
             time_dirs[x].pop()
-        for t in time_dirs[x]:
+            for t in time_dirs[x::del_each]:
             if (keep is None) or (not KEEP.match(t)):
                 rm_dirs.append(os.path.join(x,t))
 
@@ -92,6 +93,27 @@ def clean_postprocessing():
         except OSError as e:
             if e.errno == os.errno.ENOENT:
                 print('ignore: {0}'.format(os.path.join(DIR,x)))
+
+@clean.command('cuttingPlane')
+@click.option('--keep-last/--nokeep-latest',default=True)
+@click.option('--keep')
+@click.option('--del-each',default=1)
+def clean_cutting_plane(keep=None,keep_last=True,del_each=1):
+    time_dirs = os.listdir('postProcessing/cuttingPlane')
+    p = multiprocessing.Pool(n)
+    rm_dirs = []
+    if keep is not None:
+        KEEP = re.compile(keep)
+    for x in time_dirs:
+        # sort the times
+        time_dirs[x].sort(key=float)
+        if keep_last:
+            time_dirs[x].pop()
+        for t in time_dirs[x::del_each]:
+            if (keep is None) or (not KEEP.match(t)):
+                rm_dirs.append(os.path.join(x,t))
+
+    p.map(shutil.rmtree,rm_dirs)
 
 def collect_time_dirs_in_paralell(path,parallel=False):
     time_dirs = {}
