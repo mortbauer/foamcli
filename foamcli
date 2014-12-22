@@ -46,7 +46,7 @@ def clean_processors():
                 shutil.rmtree(os.path.join(DIR,x))
 
 @clean.command('parallel')
-@click.option('--keep-last/--nokeep-last',default=True)
+@click.option('--keep-last/--nokeep-latest',default=True)
 @click.option('--keep')
 @click.option('--n',default=4)
 def clean_parallel_times(keep_last=True,n=4,keep=None):
