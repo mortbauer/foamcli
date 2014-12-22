@@ -72,7 +72,7 @@ def clean_parallel_times(keep_last=True,n=4,keep=None,del_each=1):
         time_dirs[x].sort(key=float)
         if keep_last:
             time_dirs[x].pop()
-        for t in time_dirs[x::del_each]:
+        for t in time_dirs[x][::del_each]:
             if (keep is None) or (not KEEP.match(t)):
                 rm_dirs.append(os.path.join(x,t))
 
@@ -105,14 +105,13 @@ def clean_cutting_plane(keep=None,keep_last=True,del_each=1,n=4):
     rm_dirs = []
     if keep is not None:
         KEEP = re.compile(keep)
-    for x in time_dirs:
-        # sort the times
-        time_dirs[x].sort(key=float)
-        if keep_last:
-            time_dirs[x].pop()
-        for t in time_dirs[x::del_each]:
-            if (keep is None) or (not KEEP.match(t)):
-                rm_dirs.append(os.path.join(x,t))
+    # sort the times
+    time_dirs.sort(key=float)
+    if keep_last:
+        time_dirs.pop()
+    for t in time_dirs[::del_each]:
+        if (keep is None) or (not KEEP.match(t)):
+            rm_dirs.append(os.path.join(x,t))
 
     p.map(shutil.rmtree,rm_dirs)
 
