@@ -97,9 +97,10 @@ def clean_postprocessing():
 @clean.command('cuttingPlane')
 @click.option('--keep-last/--nokeep-latest',default=True)
 @click.option('--keep')
+@click.option('--keep-each',default=0)
 @click.option('--del-each',default=1)
 @click.option('--n',default=4)
-def clean_cutting_plane(keep=None,keep_last=True,del_each=1,n=4):
+def clean_cutting_plane(keep=None,keep_last=True,del_each=1,n=4,keep_each=0):
     path = 'postProcessing/cuttingPlane'
     time_dirs = os.listdir(path)
     p = multiprocessing.Pool(n)
@@ -110,6 +111,8 @@ def clean_cutting_plane(keep=None,keep_last=True,del_each=1,n=4):
     time_dirs.sort(key=float)
     if keep_last:
         time_dirs.pop()
+    if keep_each:
+        time_dirs = [x for i,x in enumerate(time_dirs) if i%keep_each != 0]
     for t in time_dirs[::del_each]:
         if (keep is None) or (not KEEP.match(t)):
             rm_dirs.append(os.path.join(path,t))
