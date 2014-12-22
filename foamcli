@@ -72,7 +72,7 @@ def clean_parallel_times(keep_last=True,n=4,keep=None,del_each=1):
         time_dirs[x].sort(key=float)
         if keep_last:
             time_dirs[x].pop()
-            for t in time_dirs[x::del_each]:
+        for t in time_dirs[x::del_each]:
             if (keep is None) or (not KEEP.match(t)):
                 rm_dirs.append(os.path.join(x,t))
 
