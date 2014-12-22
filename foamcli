@@ -98,7 +98,8 @@ def clean_postprocessing():
 @click.option('--keep-last/--nokeep-latest',default=True)
 @click.option('--keep')
 @click.option('--del-each',default=1)
-def clean_cutting_plane(keep=None,keep_last=True,del_each=1):
+@click.option('--n',default=4)
+def clean_cutting_plane(keep=None,keep_last=True,del_each=1,n=4):
     time_dirs = os.listdir('postProcessing/cuttingPlane')
     p = multiprocessing.Pool(n)
     rm_dirs = []
