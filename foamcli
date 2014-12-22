@@ -100,7 +100,8 @@ def clean_postprocessing():
 @click.option('--del-each',default=1)
 @click.option('--n',default=4)
 def clean_cutting_plane(keep=None,keep_last=True,del_each=1,n=4):
-    time_dirs = os.listdir('postProcessing/cuttingPlane')
+    path = 'postProcessing/cuttingPlane'
+    time_dirs = os.listdir(path)
     p = multiprocessing.Pool(n)
     rm_dirs = []
     if keep is not None:
@@ -111,7 +112,7 @@ def clean_cutting_plane(keep=None,keep_last=True,del_each=1,n=4):
         time_dirs.pop()
     for t in time_dirs[::del_each]:
         if (keep is None) or (not KEEP.match(t)):
-            rm_dirs.append(os.path.join(x,t))
+            rm_dirs.append(os.path.join(path,t))
 
     p.map(shutil.rmtree,rm_dirs)
 
